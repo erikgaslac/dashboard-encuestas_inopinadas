@@ -350,7 +350,7 @@ p7:'<div class="kpis" id="k7"></div>'+
    '<div class="note" style="margin-bottom:14px"><b>Lectura correcta de esta página.</b> Las columnas de actividad (visitas, docentes, sedes, marcas) miden <b>trabajo de supervisión</b> y son comparables entre supervisores. La columna de cumplimiento mide el <b>desempeño de los docentes visitados</b>, no la calidad del supervisor: depende de la mezcla presencial/virtual y de la sede asignada, por lo que no debe usarse para rankear supervisores.</div>'+
    '<h2 class="sec">Actividad de supervisión</h2>'+
    '<div class="grid g2"><div class="card"><h3>Visitas por supervisor</h3><p class="hint">Barras apiladas por tipo de visita.</p><div class="chartbox lg"><canvas id="c_supBar"></canvas></div></div>'+
-   '<div class="card"><h3>Cobertura mensual</h3><p class="hint">Visitas registradas por mes y supervisor.</p><div class="chartbox lg"><canvas id="c_supTrend"></canvas></div></div></div>'+
+   '<div class="card"><h3>Cobertura mensual</h3><p class="hint">Visitas registradas por mes. Una línea por supervisor: se muestran todos los supervisores de la selección. Clic en la leyenda para aislar uno.</p><div class="chartbox xl"><canvas id="c_supTrend"></canvas></div></div></div>'+
    '<h2 class="sec">Detalle por supervisor</h2><div class="card"><div id="tblSup"></div></div>'+
    '<h2 class="sec">Concentración y cobertura</h2><div class="grid g2" id="supRiesgo"></div>'
 };
@@ -367,7 +367,7 @@ var CUR='p1';
   document.getElementById('btnClear').onclick=function(){ var k; for(k in STATE) STATE[k]=''; buildFilters(); render(); };
   document.getElementById('btnReload').onclick=function(){ reloadSheet(); };
   document.getElementById('footRows').innerHTML=RAW.length+' visitas · datos al '+META.generado;
-  buildFilters(); render();
+  setTimeout(function(){ buildFilters(); render(); },0);
 })();
 function go(id){
   CUR=id; var i,a=document.querySelectorAll('#nav a'), p=document.querySelectorAll('.page');
@@ -882,12 +882,16 @@ function pg7(rows){
       plugins:{legend:{position:'bottom',labels:{boxWidth:9,boxHeight:9,font:{size:10.5}}},datalabels:{display:function(c){return c.dataset.data[c.dataIndex]>0;},color:'#fff',font:{size:9.5,weight:'600'}}},
       onClick:function(e,el){ if(el.length) setF('sup', gs[el[0].index].key); }}});
   var meses=uniq(rows.map(function(r){return r.ym;})).sort();
-  chart('c_supTrend',{type:'line',data:{labels:meses,datasets:gs.slice(0,8).map(function(g,i){
-      var pal=['#2E4A6B','#E5591D','#3A9E6C','#B4478E','#D6A31C','#5B7A9B','#8A5CD1','#C24545'];
+  var palSup=['#2E4A6B','#E5591D','#3A9E6C','#B4478E','#D6A31C','#5B7A9B','#8A5CD1','#C24545',
+              '#1E9AA8','#7A8B3F','#D1739B','#4A6FD6','#A0522D','#00857A','#9B7BC8','#B5651D'];
+  chart('c_supTrend',{type:'line',data:{labels:meses,datasets:gs.map(function(g,i){
       return {label:g.key,data:meses.map(function(m){return g.rows.filter(function(r){return r.ym===m;}).length;}),
-        borderColor:pal[i%8],backgroundColor:pal[i%8],tension:.3,borderWidth:2,pointRadius:2.5};})},
-    options:{scales:{y:{grid:GRID.grid,border:{display:false},ticks:{font:{size:10}}},x:GRIDX},
-      plugins:{legend:{position:'bottom',labels:{boxWidth:9,boxHeight:9,font:{size:10}}}}}});
+        borderColor:palSup[i%palSup.length],backgroundColor:palSup[i%palSup.length],
+        borderDash:i>=palSup.length?[5,3]:[],tension:0,borderWidth:2,pointRadius:2.5,pointHoverRadius:5};})},
+    options:{scales:{y:{beginAtZero:true,grid:GRID.grid,border:{display:false},ticks:{font:{size:10},precision:0}},x:GRIDX},
+      plugins:{legend:{position:'bottom',labels:{boxWidth:9,boxHeight:9,font:{size:10},padding:7}},
+        tooltip:{mode:'index',intersect:false,itemSort:function(a,b){return b.parsed.y-a.parsed.y;},
+          filter:function(c){return c.parsed.y>0;}}}}});
   document.getElementById('tblSup').innerHTML=tbl([{t:'Supervisor'},{t:'Visitas',num:1},{t:'Docentes',num:1},{t:'Sedes',num:1},{t:'Marcas',num:1},{t:'Presencial',num:1},{t:'Virtual',num:1},{t:'% visitas virtuales',num:1},{t:'Cumplimiento de los docentes visitados',num:1},{t:'Actividad'}],
     gs.map(function(g){ var v=g.rows.filter(function(r){return r.tipo==='Virtual';}).length;
       return ['<b>'+esc(g.key)+'</b>',num(g.n_ev),num(g.docs),num(g.sedes),num(g.marcas),num(g.n_ev-v),num(v),'<span class="mono">'+pct(g.n_ev?v/g.n_ev*100:0,0)+'</span>','<span class="mono" style="color:var(--muted)">'+pct(g.pct)+'</span>',
